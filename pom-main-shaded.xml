@@ -84,7 +84,7 @@
               <minimizeJar>true</minimizeJar>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>com.google.javascript.jscomp.CommandLineRunner</mainClass>
+                  <mainClass>com.google.javascript.jscomp.LoopComplexityRunner</mainClass>
                 </transformer>
               </transformers>
             </configuration>
