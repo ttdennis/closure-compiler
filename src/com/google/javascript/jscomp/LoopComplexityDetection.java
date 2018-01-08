@@ -48,12 +48,6 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
     @Override
     public void enterScope(NodeTraversal t) {
         super.enterScope(t);
-
-        // currently limit loop complexity detection to function scopes
-        if(t.inFunctionBlockScope()) {
-            LoopComplexity loopComplexity = new LoopComplexity(t.getControlFlowGraph());
-            loopComplexity.analyze();
-        }
     }
 
     @Override
