@@ -5,53 +5,63 @@ import com.google.javascript.rhino.Node;
 
 public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallback implements CompilerPass {
 
-    private final AbstractCompiler compiler;
-    private Integer loopLevel = 0;
+  private final AbstractCompiler compiler;
+  private Integer loopLevel = 0;
 
-    public LoopComplexityDetection(AbstractCompiler compiler) {
-        this.compiler = compiler;
-    }
+  public LoopComplexityDetection(AbstractCompiler compiler) {
+    this.compiler = compiler;
+  }
 
-    public void process(Node externs, Node root) {
-        NodeTraversal.traverseEs6(this.compiler, root, this);
-    }
+  public void process(Node externs, Node root) {
+    NodeTraversal.traverseEs6(this.compiler, root, this);
+  }
 
-    public void visit(NodeTraversal t, Node n, Node parent) {
-        detectLoops(n);
-    }
+  public void visit(NodeTraversal t, Node n, Node parent) {
+    detectLoops(n);
+  }
 
-    private void detectLoops(Node n) {
-        switch (n.getToken()) {
-            case WHILE:
-            case DO:
-            case FOR:
-            case FOR_IN:
-            case FOR_OF:
-                this.loopLevel++;
-                printLoopLevel();
+  private void detectLoops(Node n) {
+    switch (n.getToken()) {
+      case WHILE:
+      case DO:
+      case FOR:
+      case FOR_IN:
+      case FOR_OF:
+        this.loopLevel++;
+        printLoopLevel();
 
-                Node block = n.getLastChild();
-                for (int i = 0; i < block.getChildCount(); i++) {
-                    detectLoops(block.getChildAtIndex(i));
-                }
-
-                this.loopLevel--;
+        Node block = n.getLastChild();
+        for (int i = 0; i < block.getChildCount(); i++) {
+          detectLoops(block.getChildAtIndex(i));
         }
-    }
 
-    private void printLoopLevel() {
-        if(this.loopLevel > 1) {
-            System.out.printf("Nested loop detected! Level: %d\n", this.loopLevel);
-        }
+        this.loopLevel--;
     }
+  }
 
-    @Override
-    public void enterScope(NodeTraversal t) {
-        super.enterScope(t);
+  private void printLoopLevel() {
+    if (this.loopLevel > 1) {
+      System.out.printf("Nested loop detected! Level: %d\n", this.loopLevel);
     }
+  }
 
-    @Override
-    public void exitScope(NodeTraversal t) {
-        super.exitScope(t);
+  @Override
+  public void enterScope(NodeTraversal t) {
+    super.enterScope(t);
+
+    Scope blockScope = t.getScope();
+    Scope functionScope = blockScope.getParent();
+
+    // currently limit loop complexity detection to function scopes
+    if (t.inFunctionBlockScope()) {
+      TaintAnalysis taintAnalysis = new TaintAnalysis(t.getControlFlowGraph(), functionScope, blockScope,
+          true, compiler, new Es6SyntacticScopeCreator(compiler));
+      taintAnalysis.analyze();
     }
+  }
+
+  @Override
+  public void exitScope(NodeTraversal t) {
+    super.exitScope(t);
+  }
 }
