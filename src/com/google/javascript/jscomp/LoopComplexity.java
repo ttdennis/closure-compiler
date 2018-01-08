@@ -32,8 +32,6 @@ import javax.annotation.Nullable;
 
 class LoopComplexity extends DataFlowAnalysis<Node, LoopComplexity.LoopComplexityLattice> {
 
-    private Integer loopLevel = 0;
-
     private static class LoopComplexityJoinOp implements JoinOp<LoopComplexityLattice> {
         @Override
         public LoopComplexityLattice apply(List<LoopComplexityLattice> in) {
@@ -52,35 +50,8 @@ class LoopComplexity extends DataFlowAnalysis<Node, LoopComplexity.LoopComplexit
 
     @Override
     LoopComplexityLattice flowThrough(Node node, LoopComplexityLattice input) {
-        detectLoops(node, false);
         return input;
     }
-
-    private void detectLoops(Node n, Boolean inLoop) {
-        switch (n.getToken()) {
-            case WHILE:
-            case DO:
-            case FOR:
-            case FOR_IN:
-            case FOR_OF:
-                this.loopLevel++;
-                printLoopLevel();
-
-                Node block = n.getLastChild();
-                for (int i = 0; i < block.getChildCount(); i++) {
-                    detectLoops(block.getChildAtIndex(i), true);
-                }
-
-                this.loopLevel--;
-        }
-    }
-
-    private void printLoopLevel() {
-        if(this.loopLevel > 1) {
-            System.out.printf("Nested loop detected! Level: %d\n", this.loopLevel);
-        }
-    }
-
 
     @Override
     LoopComplexityLattice createInitialEstimateLattice() {
