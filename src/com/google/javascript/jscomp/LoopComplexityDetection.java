@@ -2,47 +2,46 @@ package com.google.javascript.jscomp;
 
 import com.google.javascript.jscomp.graph.DiGraph;
 import com.google.javascript.rhino.Node;
+import com.google.javascript.rhino.Token;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallback implements CompilerPass {
 
   private final AbstractCompiler compiler;
   private Integer loopLevel = 0;
+  private List<Node> nestedLoops;
 
   public LoopComplexityDetection(AbstractCompiler compiler) {
+
     this.compiler = compiler;
+    nestedLoops = new ArrayList<>();
   }
 
-  public void process(Node externs, Node root) {
-    NodeTraversal.traverseEs6(this.compiler, root, this);
-  }
+  public void process(Node externs, Node root) { NodeTraversal.traverseEs6(this.compiler, root, this); }
 
-  public void visit(NodeTraversal t, Node n, Node parent) {
-    detectLoops(n);
-  }
+  public void visit(NodeTraversal t, Node n, Node parent) {}
 
-  private void detectLoops(Node n) {
-    switch (n.getToken()) {
-      case WHILE:
-      case DO:
-      case FOR:
-      case FOR_IN:
-      case FOR_OF:
-        this.loopLevel++;
-        printLoopLevel();
-
-        Node block = n.getLastChild();
-        for (int i = 0; i < block.getChildCount(); i++) {
-          detectLoops(block.getChildAtIndex(i));
+  private boolean identifyNestedLoops(Node n, boolean inLoop) {
+    for(Node c = n.getFirstChild(); c != null; c = c.getNext()) {
+      if (NodeUtil.isLoopStructure(c)) {
+        if (inLoop) {
+          return true;
         }
-
-        this.loopLevel--;
+        if (identifyNestedLoops(NodeUtil.getLoopCodeBlock(c), true)) {
+          nestedLoops.add(c);
+        }
+      }
+      else if(NodeUtil.isControlStructure(c)) {
+        Node s = c.getFirstChild();
+        while(s != null && !NodeUtil.isControlStructureCodeBlock(c, s)) {
+          s = s.getNext();
+        }
+        identifyNestedLoops(s, inLoop);
+      }
     }
-  }
-
-  private void printLoopLevel() {
-    if (this.loopLevel > 1) {
-      System.out.printf("Nested loop detected! Level: %d\n", this.loopLevel);
-    }
+    return false;
   }
 
   @Override
@@ -54,6 +53,17 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
 
     // currently limit loop complexity detection to function scopes
     if (t.inFunctionBlockScope()) {
+
+      // identify all occurring nested loops in function
+      identifyNestedLoops(t.getScopeRoot(), false);
+      if (nestedLoops != null) {
+        System.out.println("Nested loop(s) detected:");
+        for (int i = 0; i < nestedLoops.size(); i++) {
+          System.out.println("\tNested loop in line " + nestedLoops.get(i).getLineno());
+          System.out.println("\t" + compiler.toSource(nestedLoops.get(i)));
+        }
+      }
+
       TaintAnalysis taintAnalysis = new TaintAnalysis(t.getControlFlowGraph(), functionScope, blockScope,
           true, compiler, new Es6SyntacticScopeCreator(compiler));
       taintAnalysis.analyze();
