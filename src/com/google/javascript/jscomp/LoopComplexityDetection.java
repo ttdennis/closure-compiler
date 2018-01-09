@@ -7,11 +7,13 @@ import com.google.javascript.rhino.Token;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallback implements CompilerPass {
 
   private final AbstractCompiler compiler;
-  private Integer loopLevel = 0;
-  private List<Node> nestedLoops;
+  private List<List<Node>> nestedLoops;
+  private List<Node> currentNodeList;
 
   public LoopComplexityDetection(AbstractCompiler compiler) {
 
@@ -27,11 +29,14 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
     for(Node c = n.getFirstChild(); c != null; c = c.getNext()) {
       if (NodeUtil.isLoopStructure(c)) {
         if (inLoop) {
+          currentNodeList.add(c);
+          nestedLoops.add(currentNodeList);
           return true;
         }
-        if (identifyNestedLoops(NodeUtil.getLoopCodeBlock(c), true)) {
-          nestedLoops.add(c);
-        }
+        currentNodeList = new ArrayList<>();
+        currentNodeList.add(c);
+
+        identifyNestedLoops(NodeUtil.getLoopCodeBlock(c), true);
       }
       else if(NodeUtil.isControlStructure(c)) {
         Node s = c.getFirstChild();
@@ -39,6 +44,24 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
           s = s.getNext();
         }
         identifyNestedLoops(s, inLoop);
+      }
+    }
+    return false;
+  }
+
+  private boolean containsTaintedVar(Node n, TaintAnalysis taintAnalysis) {
+    checkNotNull(n);
+    if (n.getToken() == Token.NAME) {
+      int varIndex = taintAnalysis.getVarIndex(n.getString());
+      if (varIndex != -1)
+        return taintAnalysis.getExitLatticeElement().isTainted(varIndex);
+      else
+        return false;
+    } else {
+      for (Node c = n.getFirstChild(); c != null; c = c.getNext()) {
+        if (containsTaintedVar(c, taintAnalysis)) {
+          return true;
+        }
       }
     }
     return false;
@@ -54,19 +77,31 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
     // currently limit loop complexity detection to function scopes
     if (t.inFunctionBlockScope()) {
 
-      // identify all occurring nested loops in function
-      identifyNestedLoops(t.getScopeRoot(), false);
-      if (nestedLoops != null) {
-        System.out.println("Nested loop(s) detected:");
-        for (int i = 0; i < nestedLoops.size(); i++) {
-          System.out.println("\tNested loop in line " + nestedLoops.get(i).getLineno());
-          System.out.println("\t" + compiler.toSource(nestedLoops.get(i)));
-        }
-      }
-
       TaintAnalysis taintAnalysis = new TaintAnalysis(t.getControlFlowGraph(), functionScope, blockScope,
           true, compiler, new Es6SyntacticScopeCreator(compiler));
       taintAnalysis.analyze();
+
+      // identify all occurring nested loops in function
+      identifyNestedLoops(t.getScopeRoot(), false);
+
+      // check all loop condition expressions for tainted variables
+      for (int i = 0; i < nestedLoops.size(); i++) {
+        System.out.println("Nested Loop in line " + nestedLoops.get(i).get(0).getLineno());
+
+        boolean isTainted = true;
+        for (int j = 0; j < nestedLoops.get(i).size(); j++) {
+          Node expr = NodeUtil.getConditionExpression(nestedLoops.get(i).get(j));
+          // get rhs of expression
+          Node rhs = expr.getLastChild() != null ? expr.getLastChild() : expr;
+
+          isTainted &= containsTaintedVar(rhs, taintAnalysis);
+        }
+
+        if(isTainted) {
+          System.out.println("\tLoop is parameter dependent");
+          System.out.println("\t" + compiler.toSource(nestedLoops.get(i).get(0)));
+        }
+      }
     }
   }
 

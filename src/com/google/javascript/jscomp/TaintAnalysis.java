@@ -56,9 +56,7 @@ class TaintAnalysis
           && this.taintSet.equals(((TaintAnalysisLattice) other).taintSet);
     }
 
-    public boolean isTainted(int index) {
-      return taintSet.get(index);
-    }
+    public boolean isTainted(int index) { return taintSet.get(index); }
 
     @Override
     public String toString() {
@@ -142,7 +140,11 @@ class TaintAnalysis
   }
 
   public int getVarIndex(String var) {
-    return scopeVariables.get(var);
+    // return -1 when variable is not in scope
+    if (scopeVariables.containsKey(var)) {
+      return scopeVariables.get(var);
+    }
+    return -1;
   }
 
   @Override
