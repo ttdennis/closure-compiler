@@ -14,7 +14,7 @@ class LoopComplexityRunner extends CommandLineRunner {
 
   @Override
   protected CompilerOptions createOptions() {
-    CompilerOptions options = super.createOptions();
+    CompilerOptions options = new CompilerOptions();
     Compiler compiler = this.getCompiler();
     options.setOutputJs(CompilerOptions.OutputJs.NONE);
     LoopComplexityDetection loopComplexityDetection = new LoopComplexityDetection(compiler);
