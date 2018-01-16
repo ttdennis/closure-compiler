@@ -4,6 +4,8 @@ import com.google.javascript.jscomp.parsing.parser.FeatureSet;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.google.javascript.jscomp.parsing.parser.FeatureSet.ES8_MODULES;
 
@@ -23,6 +25,11 @@ class LoopComplexityRunner extends CommandLineRunner {
   }
 
   public static void main(String[] args) {
+    // turn of PhaseOptimizer logger to omit warnings that it is
+    // disabled
+    Logger pl = Logger.getLogger(PhaseOptimizer.class.getName());
+    pl.setLevel(Level.OFF);
+
     LoopComplexityRunner runner = new LoopComplexityRunner(args);
     if (runner.shouldRunCompiler()) {
       runner.run();
