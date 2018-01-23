@@ -17,7 +17,9 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
   private FunctionNames functionNames;
 
   private static final String[] callbackLoopFunctions = {
-      "forEach"
+      "forEach",
+      "map",
+      "reduce"
   };
 
   static final DiagnosticType INPUT_DEPENDENT_NESTED_LOOP = DiagnosticType.warning(
@@ -41,10 +43,15 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
    */
   private boolean isCallbackLoop(Node n) {
     if(n.isExprResult()) {
-      Node c = n.getFirstChild();
+      Node call = n.getFirstChild();
       for (String methodName : callbackLoopFunctions) {
-        if (NodeUtil.isObjectCallMethod(c, methodName))
-          return true;
+        if (NodeUtil.isObjectCallMethod(call, methodName)) {
+          for(Node c = call.getFirstChild(); c != null; c = c.getNext()) {
+            if (c.isFunction()) {
+              return true;
+            }
+          }
+        }
       }
     }
     return false;
