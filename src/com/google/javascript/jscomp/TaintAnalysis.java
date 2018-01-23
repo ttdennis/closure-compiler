@@ -112,7 +112,6 @@ class TaintAnalysis
     this.argsTainted = argsTainted;
     this.allVarsInFn = new HashMap<>();
     this.orderedVars = new ArrayList<>();
-
     NodeUtil.getAllVarsDeclaredInFunction(
         allVarsInFn, orderedVars, compiler, scopeCreator, jsScope);
     addScopeVariables();
@@ -213,7 +212,7 @@ class TaintAnalysis
       case NAME: {
         for (Node c = n.getFirstChild(); c != null; c = c.getNext()) {
           TaintAnalysisLattice intermediate = updateTaintStatus(c, result);
-          result.taintSet.and(intermediate.taintSet);
+          result.taintSet.or(intermediate.taintSet);
         }
         return result;
       }
@@ -238,16 +237,16 @@ class TaintAnalysis
    * @return true when tainted, false when not
    */
   private boolean expressionTainted(Node n, TaintAnalysisLattice input) {
-    checkNotNull(n);
-    switch(n.getToken()) {
-      case NAME:
-        System.out.println(n.getString());
-        System.out.println(getVarIndex(n.getString()));
-
-        if(input.taintSet.get(getVarIndex(n.getString()))){
-          return true;
-        }
+    if(n != null) {
+      switch(n.getToken()) {
+        case NAME:
+          int index = getVarIndex(n.getString());
+          if(index >= 0 && input.taintSet.get(index)){
+            return true;
+          }
       }
+      return false;
+    }
     return false;
   }
 
