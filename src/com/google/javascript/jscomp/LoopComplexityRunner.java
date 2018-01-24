@@ -1,6 +1,8 @@
 package com.google.javascript.jscomp;
 
+import com.google.javascript.jscomp.parsing.Config;
 import com.google.javascript.jscomp.parsing.parser.FeatureSet;
+import com.google.javascript.jscomp.parsing.parser.Parser;
 
 import java.util.ArrayList;
 import java.util.List;

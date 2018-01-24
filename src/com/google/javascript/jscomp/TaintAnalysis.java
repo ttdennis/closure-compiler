@@ -214,18 +214,10 @@ class TaintAnalysis
           TaintAnalysisLattice intermediate = updateTaintStatus(c, result);
           result.taintSet.or(intermediate.taintSet);
         }
-        return result;
       }
-
-      default:
-        if (NodeUtil.isAssignmentOp(n)) {
-          for (Node c = n.getFirstChild(); c != null; c = c.getNext()) {
-            TaintAnalysisLattice intermediate = updateTaintStatus(c, result);
-            result.taintSet.or(intermediate.taintSet);
-          }
-        }
-        return result;
     }
+
+    return result;
   }
 
   /**
@@ -238,14 +230,22 @@ class TaintAnalysis
    */
   private boolean expressionTainted(Node n, TaintAnalysisLattice input) {
     if(n != null) {
-      switch(n.getToken()) {
-        case NAME:
-          int index = getVarIndex(n.getString());
-          if(index >= 0 && input.taintSet.get(index)){
-            return true;
-          }
+
+      if(n.isName()) {
+        int index = getVarIndex(n.getString());
+        if(index >= 0 && input.taintSet.get(index)){
+          return true;
+        }
+      } else {
+        // assume that any kind of interference means the variable is tainted
+        // includes a functions return value with a tainted parameter regardless of
+        // the actual interference of the parameter with the return value
+        boolean tainted = true;
+        for (Node c = n.getFirstChild(); c != null; c = c.getNext()) {
+          tainted &= expressionTainted(c, input);
+        }
+        return tainted;
       }
-      return false;
     }
     return false;
   }
