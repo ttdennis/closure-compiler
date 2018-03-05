@@ -14,7 +14,7 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
   private final AbstractCompiler compiler;
   private List<List<Node>> nestedLoops;
   private List<Node> currentNodeList;
-  private FunctionNames functionNames;
+  private List<Node> complexFunctions;
 
   private static final String[] callbackLoopFunctions = {
       "forEach",
@@ -28,8 +28,8 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
 
   public LoopComplexityDetection(AbstractCompiler compiler) {
     this.compiler = compiler;
-    this.functionNames = compiler.getFunctionNames();
     this.nestedLoops = new ArrayList<>();
+    this.complexFunctions = new ArrayList<>();
   }
 
   public void process(Node externs, Node root) { NodeTraversal.traverseEs6(this.compiler, root, this); }
@@ -196,8 +196,14 @@ public class LoopComplexityDetection extends NodeTraversal.AbstractScopedCallbac
             isTainted &= containsTaintedVar(expr, taintAnalysis);
         }
 
-        if(isTainted)
+        if(isTainted) {
           t.report(nestedLoops.get(i).get(0), INPUT_DEPENDENT_NESTED_LOOP, "");
+
+          if (!this.complexFunctions.contains(functionScope.rootNode))
+            this.complexFunctions.add(functionScope.rootNode);
+
+          //System.out.println(this.complexFunctions);
+        }
       }
     }
   }
